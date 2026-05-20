@@ -16,11 +16,25 @@ export class UpdateProfile extends RegisterDto {}
 @Controller('users')
 export class UserController {
   constructor(private readonly userService: UserService) {}
-  // Get profile
-  @Get('me:displayName')
+
+  // Simple test GET endpoint
+  @Get('test')
+  testApiGet() {
+    return { message: 'Test GET API is working successfully!' };
+  }
+
+  // Get all profiles
+  @Get()
   @HttpCode(200)
   async getProfile() {
     return await this.userService.getProfile();
+  }
+
+  // Get specific profile by display name
+  @Get('me/:displayName')
+  @HttpCode(200)
+  async getProfileByName(@Param('displayName') displayName: string) {
+    return await this.userService.getProfileByName(displayName);
   }
 
   @Patch('me')

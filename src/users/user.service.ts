@@ -15,7 +15,7 @@ export class UserService {
   }
 
   // Find user by name
-  async getprofilebyName(displayName: string): Promise<UserDocument | null> {
+  async getProfileByName(displayName: string): Promise<UserDocument | null> {
     return await this.userModel.findOne({ displayName });
   }
 
