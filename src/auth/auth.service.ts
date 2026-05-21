@@ -39,7 +39,7 @@ export class AuthService {
     return await createdUser.save(); // save() is a method of Mongoose Model that saves the document to the database
   }
 
-  async validateUser(loginDto: LoginDto): Promise<any> {
+  async validateUser(loginDto: LoginDto): Promise<Partial<User>> {
     const { email, passHash } = loginDto;
     const user = await this.userModel.findOne({ email }); // Check user exist or not
     if (!user) {
