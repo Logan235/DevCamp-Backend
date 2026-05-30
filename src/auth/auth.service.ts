@@ -95,4 +95,54 @@ export class AuthService {
       refreshToken,
     };
   }
+
+  // Controller save info of user who login with google
+  async validateGoogleUser(email: string): Promise<UserDocument> {
+    const user = await this.userModel.findOne({ email });
+    if (!user) {
+      const newUser = new this.userModel({
+        email,
+        displayName: email,
+        authProviders: {
+          provider: 'google',
+          providerId: email,
+          providerEmail: email,
+          providerConnectedAt: new Date(),
+        },
+      });
+      return await newUser.save();
+    }
+    return user;
+  }
+
+  async validateGithubUser(
+    email: string,
+    githubId: string,
+    displayName: string,
+  ): Promise<UserDocument> {
+    const orConditions: any[] = [{ 'authProviders.providerId': githubId }];
+    if (email) {
+      orConditions.push({ email }); // If email exists, add condition to find user by email as well (fallback)
+    }
+
+    // Tìm user bằng githubId trước, nếu không có mới fall-back tìm bằng email
+    const user = await this.userModel.findOne({
+      $or: orConditions, // Find user by githubId first, if not found then fall-back to find by email
+    });
+
+    if (!user) {
+      const newUser = new this.userModel({
+        email: email || `${githubId}@users.noreply.github.com`, // If hide email, use githubId to create a fake email
+        displayName: displayName || 'Github User',
+        authProviders: {
+          provider: 'github',
+          providerId: githubId, // Use by githubId as providerId
+          providerEmail: email,
+          providerConnectedAt: new Date(),
+        },
+      });
+      return await newUser.save();
+    }
+    return user;
+  }
 }
