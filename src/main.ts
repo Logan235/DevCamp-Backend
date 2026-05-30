@@ -7,4 +7,5 @@ async function bootstrap() {
   app.use(morgan('dev')); // define use of morgan middleware
   await app.listen(process.env.PORT ?? 3000);
 }
-bootstrap();
+console.log('Server is running on port', process.env.PORT ?? 3000);
+bootstrap().catch(console.error);
