@@ -1,16 +1,23 @@
 import { Injectable } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { TestCase } from './test.schemas';
 
 @Injectable()
 export class TestService {
-  getQuestions(): string {
-    return 'get: questions';
+  constructor(
+    @InjectModel(TestCase.name) private testCaseModel: Model<TestCase>,
+  ) {}
+
+  getQuestions() {
+    return { message: 'get: questions' };
   }
 
-  postSubmissions(): string {
-    return 'post: submissions';
+  postSubmissions(body: any) {
+    return { message: 'post: submissions', data: body };
   }
 
-  getResults(): string {
-    return 'get: results';
+  getResults() {
+    return { message: 'get: results' };
   }
 }

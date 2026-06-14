@@ -1,17 +1,19 @@
-import { Controller, Get, Param, Put } from '@nestjs/common';
+import { Controller, Get, Put, Body, Request, UseGuards } from '@nestjs/common';
 import { RoadmapService } from './roadmap.service';
 
 @Controller('roadmaps')
 export class RoadmapController {
   constructor(private readonly roadmapService: RoadmapService) {}
 
-  @Get('/:id')
-  getRoadmaps(@Param('id') id: string) {
-    return this.roadmapService.getRoadmaps(id);
+  @Get('me')
+  getRoadmaps(@Request() req: any) {
+    const userId = req.user?.id || '123456789abcdefghijkl';
+    return this.roadmapService.getRoadmaps(userId);
   }
 
-  @Put('/:id')
-  putRoadmaps(@Param('id') id: string) {
-    return this.roadmapService.putRoadmaps(id);
+  @Put('me')
+  putRoadmaps(@Request() req: any, @Body() body: any) {
+    const userId = req.user?.id || '123456789abcdefghijkl';
+    return this.roadmapService.putRoadmaps(userId, body);
   }
 }
