@@ -1,7 +1,4 @@
 allowBuilds:
   '@nestjs/core': true
-<<<<<<< HEAD
-=======
   bcrypt: true
->>>>>>> upstream/main
   unrs-resolver: true
