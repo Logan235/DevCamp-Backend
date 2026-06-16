@@ -25,17 +25,28 @@ export class TestCase extends Document {
   challengeId: Types.ObjectId;
 
   @Prop({ type: String, required: true })
-  input: string;
+  input: string; // User answer
 
   @Prop({ type: String, required: true })
-  expectedOutput: string;
+  expectedOutput: string; // Expected answer
 
   @Prop({
     type: String,
     required: true,
-    enum: ['sample', 'hidden', 'stress', 'generated'],
+    // Type of test case:
+    enum: [
+      'sample',
+      'hidden',
+      'stress',
+      'generated',
+      'multiple-choice',
+      'essay',
+    ],
   })
   type: string;
+
+  @Prop({ type: [String] }) // Multiple options for multiple-choice questions (if type is 'multiple-choice')
+  options?: string[];
 
   @Prop({ type: GeneratedFor })
   generatedFor?: GeneratedFor;
@@ -48,3 +59,24 @@ export class TestCase extends Document {
 }
 
 export const TestCaseSchema = SchemaFactory.createForClass(TestCase);
+
+@Schema({ timestamps: true })
+export class TestSubmission extends Document {
+  @Prop({ type: Types.ObjectId, ref: 'User' })
+  userId?: Types.ObjectId;
+
+  @Prop({ type: Types.ObjectId, ref: 'Challenge', required: true })
+  challengeId: Types.ObjectId;
+
+  @Prop({ type: [String], required: true })
+  userAnswers: string[];
+
+  @Prop({ type: Number })
+  score: number;
+
+  @Prop({ type: String })
+  status: string;
+}
+
+export const TestSubmissionSchema =
+  SchemaFactory.createForClass(TestSubmission);

@@ -5,22 +5,19 @@ import { TestService } from './test.service';
 export class TestController {
   constructor(private readonly testService: TestService) {}
 
-  // Lấy các câu hỏi mẫu/test case mẫu: GET /assessment/questions?challengeId=64b5f1...
-  @Get('questions')
+  @Get('questions') // GET /assessment/questions?challengeId=...
   getQuestions(@Query('challengeId') challengeId: string) {
     return this.testService.getQuestions(challengeId);
   }
 
-  // Nộp bài và chấm điểm: POST /assessment/submissions
-  @Post('submissions')
+  @Post('submissions') // POST /assessment/submissions
   postSubmissions(
     @Body() body: { challengeId: string; userCodeOutput: string[] },
   ) {
     return this.testService.postSubmissions(body);
   }
 
-  // Xem cấu trúc/kết quả test case của bài tập: GET /assessment/results?challengeId=64b5f1...
-  @Get('results')
+  @Get('results') // GET /assessment/results?challengeId=...
   getResults(@Query('challengeId') challengeId: string) {
     return this.testService.getResults(challengeId);
   }

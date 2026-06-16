@@ -5,91 +5,94 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { TestCase } from './test.schemas';
+import { TestCase, TestSubmission } from './test.schemas';
 
 @Injectable()
 export class TestService {
   constructor(
     @InjectModel(TestCase.name) private readonly testCaseModel: Model<TestCase>,
+    @InjectModel(TestSubmission.name)
+    private readonly testSubmissionModel: Model<TestSubmission>,
   ) {}
 
-  // 1. Lấy danh sách các Sample Test Cases công khai của một bài tập để làm câu hỏi mẫu
+  // Return list of questions for a given challengeId, only including those that are active and of displayable types (sample, multiple-choice, essay)
   async getQuestions(challengeId: string) {
     if (!Types.ObjectId.isValid(challengeId)) {
       throw new BadRequestException(
-        'ID bài tập (challengeId) không đúng định dạng',
+        'Invalid challengeId format. Must be a valid MongoDB ObjectId string.',
       );
     }
 
-    const sampleTestcases = await this.testCaseModel
+    const questions = await this.testCaseModel
       .find({
         challengeId: new Types.ObjectId(challengeId),
-        type: 'sample',
         isActive: true,
+        type: { $in: ['sample', 'multiple-choice', 'essay'] },
       })
-      .select('input expectedOutput type')
+      .select('input expectedOutput type options')
       .exec();
 
     return {
       challengeId,
-      totalQuestions: sampleTestcases.length,
-      questions: sampleTestcases,
+      totalQuestions: questions.length,
+      questions: questions,
     };
   }
 
-  // 2. Tiếp nhận mã nguồn nộp lên, chạy thử với toán bộ test cases (gồm cả test case ẩn) và chấm điểm
+  // Process user submissions for a given challengeId, compare with expected outputs, calculate score, and save the submission record
   async postSubmissions(body: {
     challengeId: string;
-    userCodeOutput: string[];
+    userId?: string;
+    userCodeOutput: string[]; // Expected output (can be blank)
   }) {
-    const { challengeId, userCodeOutput } = body;
+    const { challengeId, userId, userCodeOutput } = body;
 
     if (!challengeId || !userCodeOutput || !Array.isArray(userCodeOutput)) {
       throw new BadRequestException(
-        'Dữ liệu truyền lên không đầy đủ hoặc sai định dạng',
+        'Invalid request body. Required: { challengeId: string, userCodeOutput: string[] }',
       );
     }
 
-    // Lấy toàn bộ các test cases đang kích hoạt của bài tập này để đối chiếu (Cả sample và hidden)
     const allTestCases = await this.testCaseModel
       .find({ challengeId: new Types.ObjectId(challengeId), isActive: true })
       .exec();
 
     if (!allTestCases || allTestCases.length === 0) {
       throw new NotFoundException(
-        'Không tìm thấy dữ liệu Test Cases cho bài tập này',
+        'Not found any active test cases for the given challengeId',
       );
     }
 
     let passedCount = 0;
-    const details: {
-      testCaseId: any;
-      type: string;
-      status: string;
-      input: string;
-      expected: string;
-      actual: string;
-    }[] = [];
+    let scoreableQuestionsCount = 0;
+    const details: any[] = [];
 
-    // Giả lập cơ chế chấm điểm: So sánh output của user gửi lên với đáp án expectedOutput trong DB
     allTestCases.forEach((testcase, index) => {
-      // Vì userCodeOutput là mảng, ta so sánh theo thứ tự tương ứng gửi lên
-      const userSingleOutput = userCodeOutput[index]?.trim();
+      const userSingleOutput = userCodeOutput[index]?.trim() || '';
       const expected = testcase.expectedOutput?.trim();
 
-      const isCorrect = userSingleOutput === expected;
-      if (isCorrect) passedCount++;
+      let isCorrect = false;
+      let status = 'Failed';
+
+      // Type of test case:
+      if (testcase.type === 'essay') {
+        isCorrect = true;
+        status = 'Submitted';
+      } else {
+        isCorrect = userSingleOutput === expected;
+        status = isCorrect ? 'Passed' : 'Failed';
+        scoreableQuestionsCount++;
+        if (isCorrect) passedCount++;
+      }
 
       details.push({
         testCaseId: testcase._id,
         type: testcase.type,
-        status: isCorrect ? 'Passed' : 'Failed',
-        // Nếu là test case ẩn (hidden) thì không trả về input/output để bảo mật đề bài
-        input:
-          testcase.type === 'sample' ? testcase.input : '⚠️ Hidden Test Case',
-        expected: testcase.type === 'sample' ? expected : '⚠️ Hidden Test Case',
+        status: status,
+        input: testcase.type !== 'hidden' ? testcase.input : 'Hidden Test Case',
+        expected: testcase.type !== 'hidden' ? expected : 'Hidden Test Case',
         actual:
-          testcase.type === 'sample'
+          testcase.type !== 'hidden'
             ? userSingleOutput
             : isCorrect
               ? 'Match'
@@ -97,23 +100,33 @@ export class TestService {
       });
     });
 
-    const scorePercentage = Math.round(
-      (passedCount / allTestCases.length) * 100,
-    );
+    const totalToDivide =
+      scoreableQuestionsCount > 0
+        ? scoreableQuestionsCount
+        : allTestCases.length;
+    const scorePercentage = Math.round((passedCount / totalToDivide) * 100);
+
+    await this.testSubmissionModel.create({
+      userId: userId ? new Types.ObjectId(userId) : undefined,
+      challengeId: new Types.ObjectId(challengeId),
+      userAnswers: userCodeOutput, // Save user outputs for reference
+      score: scorePercentage,
+      status: 'Completed',
+    });
 
     return {
       challengeId,
-      status: scorePercentage === 100 ? 'Accepted' : 'Wrong Answer',
+      status: scorePercentage === 100 ? 'Accepted' : 'Completed',
       score: scorePercentage,
       passed: `${passedCount}/${allTestCases.length}`,
       details,
     };
   }
 
-  // 3. Lấy lại kết quả thống kê hoặc báo cáo tổng quan của hệ thống testcase
+  // Return summary of test cases for a given challengeId, grouped by type (sample, hidden, stress, generated, multiple-choice, essay) and count of each type
   async getResults(challengeId: string) {
     if (!Types.ObjectId.isValid(challengeId)) {
-      throw new BadRequestException('ID bài tập không đúng định dạng');
+      throw new BadRequestException('Invalid challengeId format');
     }
 
     const summary = await this.testCaseModel.aggregate([
@@ -128,7 +141,7 @@ export class TestService {
 
     return {
       challengeId,
-      message: 'Thống kê cấu trúc test cases hiện tại',
+      message: 'Test case summary by type for the given challengeId',
       summary,
     };
   }
