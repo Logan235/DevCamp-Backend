@@ -1,5 +1,15 @@
-import { Controller, Get, Post, Body, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Query,
+  Request,
+  UseGuards,
+} from '@nestjs/common';
 import { TestService } from './test.service';
+import { JwtAuthGuard } from '../auth/guards/jwt.guard';
+import { SubmitAssessmentDto } from './dto/submit.dto';
 
 @Controller('assessment')
 export class TestController {
@@ -10,11 +20,13 @@ export class TestController {
     return this.testService.getQuestions(challengeId);
   }
 
-  @Post('submissions') // POST /assessment/submissions
-  postSubmissions(
-    @Body() body: { challengeId: string; userCodeOutput: string[] },
-  ) {
-    return this.testService.postSubmissions(body);
+  @Post('submissions')
+  @UseGuards(JwtAuthGuard)
+  postSubmissions(@Request() req: any, @Body() body: SubmitAssessmentDto) {
+    return this.testService.postSubmissions({
+      ...body,
+      userId: req.user.subject,
+    });
   }
 
   @Get('results') // GET /assessment/results?challengeId=...

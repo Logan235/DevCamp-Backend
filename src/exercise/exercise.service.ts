@@ -82,7 +82,7 @@ export class ExerciseService {
       status: mockStatus,
       runtime: mockRuntime,
       memory: mockMemory,
-      sourceCodePath: `/storage/codes/${userId}_${challengeId}.ts`,
+      sourceCodePath: `storage/codes/${userId}_${challengeId}.ts`,
     });
 
     return newSubmission.save();
