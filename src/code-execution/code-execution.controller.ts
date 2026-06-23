@@ -16,6 +16,7 @@ interface RequestWithUser {
   user: {
     id?: string;
     _id?: string;
+    subject?: string;
   };
 }
 
@@ -33,7 +34,7 @@ export class CodeExecutionController {
     @Request() req: RequestWithUser,
     @Body() executeCodeDto: ExecuteCodeDto,
   ) {
-    const userId = req.user.id || req.user._id;
+    const userId = req.user.id || req.user._id || req.user.subject;
     return this.codeExecutionService.executeCode(
       userId as string,
       executeCodeDto,
@@ -52,7 +53,7 @@ export class CodeExecutionController {
     @Query('limit') limit: string = '10',
     @Query('skip') skip: string = '0',
   ) {
-    const userId = req.user.id || req.user._id;
+    const userId = req.user.id || req.user._id || req.user.subject;
     return this.codeExecutionService.getSubmissions(
       userId as string,
       challengeId,
@@ -71,7 +72,7 @@ export class CodeExecutionController {
     @Request() req: RequestWithUser,
     @Param('submissionId') submissionId: string,
   ) {
-    const userId = req.user.id || req.user._id;
+    const userId = req.user.id || req.user._id || req.user.subject;
     return this.codeExecutionService.getSubmissionDetail(
       userId as string,
       submissionId,

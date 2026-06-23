@@ -13,7 +13,7 @@ export class CodeExecutionProcessor extends WorkerHost {
 
   // Language mapping for Piston API
   private readonly languageMap: Record<string, string> = {
-    cpp: 'cpp',
+    cpp: 'c++',
     c: 'c',
     python: 'python3',
     javascript: 'javascript',
@@ -35,7 +35,7 @@ export class CodeExecutionProcessor extends WorkerHost {
   private get pistonApiUrl(): string {
     return (
       this.configService.get<string>('PISTON_API_URL') ||
-      'https://api.piston.rocks/execute'
+      'https://emkc.org/api/v2/piston/execute'
     );
   }
 
@@ -68,8 +68,20 @@ export class CodeExecutionProcessor extends WorkerHost {
       const startTime = Date.now();
 
       const response = await axios.post<{
-        run?: { stdout?: string; stderr?: string; exit_code?: number };
-        compile?: { stdout?: string; stderr?: string; exit_code?: number };
+        run?: {
+          stdout?: string;
+          stderr?: string;
+          output?: string;
+          code?: number;
+          signal?: string | null;
+        };
+        compile?: {
+          stdout?: string;
+          stderr?: string;
+          output?: string;
+          code?: number;
+          signal?: string | null;
+        };
       }>(
         this.pistonApiUrl,
         {
@@ -96,16 +108,15 @@ export class CodeExecutionProcessor extends WorkerHost {
       let error = '';
       let statusCode = 0;
 
-      if (result.run) {
+      if (result.compile && result.compile.code !== 0) {
+        output = result.compile.stdout || '';
+        error =
+          result.compile.stderr || result.compile.output || 'Compilation error';
+        statusCode = result.compile.code ?? 1;
+      } else if (result.run) {
         output = result.run.stdout || '';
         error = result.run.stderr || '';
-        statusCode = result.run.exit_code || 0;
-      }
-
-      if (result.compile && result.compile.exit_code !== 0) {
-        error =
-          result.compile.stderr || result.compile.stdout || 'Compilation error';
-        statusCode = 1;
+        statusCode = result.run.code ?? 0;
       }
 
       submission.output = output;
